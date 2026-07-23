@@ -94,19 +94,32 @@ def parse_fulfillment(raw: dict) -> Fulfillment:
 
 def fetch_labeled_orders(
     client: EbayClient, days_back: int, labeled_only: bool = True
-) -> tuple[list[Order], list[Order]]:
-    """Return (orders with a shipping label, orders without one)."""
+) -> tuple[list[Order], list[Order], list[Order]]:
+    """Return (labeled within the window, unlabeled, labeled before the window).
+
+    The API can only be queried by lastmodifieddate, which also moves on
+    payment, delivery-scan, and refund noise — so the label's own creation
+    date (shippedDate) decides which bucket an order lands in. Orders whose
+    fulfillment has no shippedDate count as recent rather than silently
+    disappearing.
+    """
     since = datetime.now(timezone.utc) - timedelta(days=days_back)
-    labeled: list[Order] = []
+    recent: list[Order] = []
     unlabeled: list[Order] = []
+    earlier: list[Order] = []
     for raw in client.get_orders(since, labeled_only=labeled_only):
         order = parse_order(raw)
         order.fulfillments = [
             parse_fulfillment(f)
             for f in client.get_shipping_fulfillments(order.order_id)
         ]
-        (labeled if order.has_label else unlabeled).append(order)
-    return labeled, unlabeled
+        if not order.has_label:
+            unlabeled.append(order)
+        elif order.label_date and order.label_date < since:
+            earlier.append(order)
+        else:
+            recent.append(order)
+    return recent, unlabeled, earlier
 
 
 def group_by_buyer(orders: list[Order]) -> list[BuyerGroup]:

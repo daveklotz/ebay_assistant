@@ -35,7 +35,7 @@ def run(args) -> int:
     state = State.load(config.config_dir)
 
     print(f"Fetching orders labeled in the last {days} days...")
-    labeled, unlabeled = fetch_labeled_orders(client, days)
+    labeled, unlabeled, earlier = fetch_labeled_orders(client, days)
 
     already = [o for o in labeled if state.is_handled(o.order_id)]
     if args.include_messaged:
@@ -49,6 +49,8 @@ def run(args) -> int:
         parts.append(f"{len(already)} already handled")
     if unlabeled:
         parts.append(f"{len(unlabeled)} awaiting label")
+    if earlier:
+        parts.append(f"{len(earlier)} labeled before the window (skipped)")
     parts.append(f"{len(groups)} buyer{'s' if len(groups) != 1 else ''} to review")
     print("; ".join(parts) + ".")
 

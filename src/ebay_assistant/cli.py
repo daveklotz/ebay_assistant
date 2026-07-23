@@ -89,11 +89,16 @@ def cmd_orders(args) -> int:
     days = args.days or config.days_back
     state = State.load(config.config_dir)
 
-    print(f"Orders modified in the last {days} days:")
-    labeled, unlabeled = fetch_labeled_orders(client, days, labeled_only=False)
+    print(f"Orders labeled (or awaiting a label) in the last {days} days:")
+    labeled, unlabeled, earlier = fetch_labeled_orders(client, days, labeled_only=False)
     orders = labeled + unlabeled
     if not orders:
         print("  (none)")
+        if earlier:
+            print(
+                f"  ({len(earlier)} older labeled order(s) were modified recently "
+                "— widen with --days to see them)"
+            )
         return 0
 
     epoch = datetime.min.replace(tzinfo=timezone.utc)
@@ -120,4 +125,9 @@ def cmd_orders(args) -> int:
                 p for p in (fulfillment.carrier_code, fulfillment.tracking_number) if p
             )
             print(f"    -> label {labeled_on}: {pieces or 'no tracking'}")
+    if earlier:
+        print(
+            f"\n  (+ {len(earlier)} older labeled order(s) modified recently, "
+            "hidden — widen with --days to see them)"
+        )
     return 0
