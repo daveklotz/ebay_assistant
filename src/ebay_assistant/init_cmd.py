@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import getpass
 import sys
+import webbrowser
 from datetime import datetime, timedelta, timezone
-from urllib.parse import parse_qs, unquote
+from urllib.parse import parse_qs, quote, unquote, urlencode
 
 from .auth import (
     SCOPES,
@@ -31,6 +32,11 @@ from .config import (
 from .ebay_client import EbayApiError, EbayClient
 
 REFRESH_TOKEN_LIFETIME_DAYS = 547  # ~18 months, eBay's documented lifetime
+
+AUTH_HOST = {
+    "production": "https://auth.ebay.com",
+    "sandbox": "https://auth.sandbox.ebay.com",
+}
 
 
 def run(args) -> int:
@@ -147,11 +153,13 @@ account when eBay prompts you. The consent screen should include:
   A) Portal token: under "Get a User Token Here", choose OAuth, sign in,
      and copy the REFRESH token (the long "v^1.1#..." string labeled
      refresh).
-  B) Test Sign-in workaround (use this when the OAuth radio button keeps
-     popping the "Configure the OAuth Settings" dialog): under "Get a Token
-     from eBay via Your Application", click Test Sign-in, sign in, and when
-     the browser lands on your redirect page, copy the ENTIRE address-bar
-     URL — it carries a ?code=... that is valid for about 5 minutes.
+  B) Consent-URL workaround (use this when the OAuth radio button keeps
+     popping the "Configure the OAuth Settings" dialog): give init your
+     RuName and it builds the OAuth consent URL for you; sign in there,
+     then paste back the URL your browser lands on — it carries a
+     ?code=... valid for about 5 minutes. (Don't use the portal's
+     "Test Sign-in" button — it runs the legacy Auth'n'Auth flow, which
+     never produces an OAuth code.)
 """)
     while True:
         method = input("Method [A/B] (A): ").strip().lower() or "a"
@@ -161,16 +169,48 @@ account when eBay prompts you. The consent screen should include:
     if method == "a":
         refresh_token = getpass.getpass("Refresh token (hidden): ").strip()
         return refresh_token, _prompt_expiry()
+
     runame = input(
         "RuName (the generated 'eBay Redirect URL name', e.g. Your_Name-AppName-xxxxx): "
     ).strip()
-    pasted = input("Paste the full redirect URL (or just the code value): ").strip()
-    print("Exchanging the code for tokens...")
-    _, refresh_token, expires_at = exchange_authorization_code(
-        API_BASE[environment], app_id, cert_id, _extract_code(pasted), runame
+    consent_url = _consent_url(environment, app_id, runame)
+    print("\nOpen this URL and sign in with your eBay SELLER account:\n")
+    print(f"  {consent_url}\n")
+    if webbrowser.open(consent_url):
+        print("(opened it in your browser for you)")
+    while True:
+        pasted = input("Paste the full redirect URL (or just the code value): ").strip()
+        try:
+            code = _extract_code(pasted)
+        except ValueError as exc:
+            print(f"  {exc}")
+            continue
+        print("Exchanging the code for tokens...")
+        try:
+            _, refresh_token, expires_at = exchange_authorization_code(
+                API_BASE[environment], app_id, cert_id, code, runame
+            )
+        except AuthError as exc:
+            print(f"  {exc}")
+            again = input("  Try again with a fresh URL? [y/N]: ").strip().lower()
+            if again == "y":
+                continue
+            raise
+        print("Refresh token obtained.")
+        return refresh_token, expires_at
+
+
+def _consent_url(environment: str, app_id: str, runame: str) -> str:
+    params = urlencode(
+        {
+            "client_id": app_id,
+            "redirect_uri": runame,
+            "response_type": "code",
+            "scope": " ".join(SCOPES),
+        },
+        quote_via=quote,
     )
-    print("Refresh token obtained.")
-    return refresh_token, expires_at
+    return f"{AUTH_HOST[environment]}/oauth2/authorize?{params}"
 
 
 def _extract_code(pasted: str) -> str:
@@ -181,6 +221,13 @@ def _extract_code(pasted: str) -> str:
         codes = parse_qs(query).get("code", [])
         if codes:
             return codes[0]
+    if "ebaytkn" in pasted or "tknexp" in pasted:
+        raise ValueError(
+            "that URL came from the legacy Auth'n'Auth flow (the portal's "
+            "Test Sign-in button runs that one) — it has no OAuth code in it. "
+            "Use the consent URL printed above, sign in there, and paste the "
+            "URL you land on."
+        )
     return unquote(pasted.strip())
 
 

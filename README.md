@@ -83,11 +83,13 @@ The walkthrough covers everything, but in short:
 
    > **Portal quirk:** minting a user token requires a configured redirect
    > URL ("RuName") first, and even then the *OAuth* radio button sometimes
-   > keeps popping the "Configure the OAuth Settings" dialog. If that
-   > happens, use the redirect URL's **Test Sign-in** button instead: sign
-   > in, then choose method **B** in `init` and paste the URL you land on
-   > (it carries a short-lived `?code=...`) plus your RuName — `init`
-   > exchanges the code for tokens itself.
+   > keeps popping the "Configure the OAuth Settings" dialog no matter what.
+   > If that happens, choose method **B** in `init`: give it your RuName and
+   > it builds and opens the OAuth consent URL directly; after you sign in,
+   > paste back the URL you land on (it carries a short-lived `?code=...`)
+   > and `init` exchanges it for tokens itself. Don't bother with the
+   > portal's **Test Sign-in** button — it runs the legacy Auth'n'Auth flow
+   > and never produces an OAuth code.
 3. `init` validates everything with a live read-only call.
 
 ## Usage
