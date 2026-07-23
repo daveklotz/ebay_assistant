@@ -50,7 +50,7 @@ Draft (guessed "the card"):
 Requires Python 3.11+.
 
 ```
-git clone https://github.com/davidklotz/ebay_assistant.git
+git clone https://github.com/daveklotz/ebay_assistant.git
 cd ebay_assistant
 python3 -m venv .venv && .venv/bin/pip install .
 .venv/bin/ebay-assistant --help    # or add .venv/bin to your PATH, or use pipx
