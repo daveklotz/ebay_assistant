@@ -46,18 +46,18 @@ class State:
     def is_handled(self, order_id: str) -> bool:
         return order_id in self.data["messaged_orders"]
 
-    def mark_sent(self, order_ids: list[str], buyer: str, message_id: str) -> None:
-        self._mark(order_ids, buyer, "sent", message_id)
+    def mark_sent(self, order_ids: list[str], message_id: str) -> None:
+        self._mark(order_ids, "sent", message_id)
 
-    def mark_never(self, order_ids: list[str], buyer: str) -> None:
-        self._mark(order_ids, buyer, "never", None)
+    def mark_never(self, order_ids: list[str]) -> None:
+        self._mark(order_ids, "never", None)
 
-    def _mark(
-        self, order_ids: list[str], buyer: str, status: str, message_id: str | None
-    ) -> None:
+    def _mark(self, order_ids: list[str], status: str, message_id: str | None) -> None:
+        # Deliberately stores no buyer data — only the seller's own order IDs —
+        # so the "Not persisting eBay data" exemption stays accurate.
         now = to_iso(datetime.now(timezone.utc))
         for order_id in order_ids:
-            entry = {"messaged_at": now, "buyer": buyer, "status": status}
+            entry = {"messaged_at": now, "status": status}
             if message_id:
                 entry["message_id"] = message_id
             self.data["messaged_orders"][order_id] = entry

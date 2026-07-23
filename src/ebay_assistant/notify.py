@@ -126,7 +126,7 @@ def _review_group(
             counts["skipped"] += 1
             return True
         elif choice == "n":
-            state.mark_never(group.order_ids, group.buyer_username)
+            state.mark_never(group.order_ids)
             counts["never"] += 1
             print("  marked — this order won't be shown again")
             return True
@@ -232,7 +232,7 @@ def _send(
                 continue
             counts["skipped"] += 1
             return
-        state.mark_sent(group.order_ids, group.buyer_username, message_id)
+        state.mark_sent(group.order_ids, message_id)
         counts["sent"] += 1
         suffix = f" (message {message_id})" if message_id else ""
         print(f"  sent to {group.buyer_username}{suffix}")

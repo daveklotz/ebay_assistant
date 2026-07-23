@@ -11,18 +11,20 @@ from ebay_assistant.state import State, StateError
 def test_round_trip(tmp_path):
     state = State.load(tmp_path)
     assert not state.is_handled("1-1")
-    state.mark_sent(["1-1", "1-2"], "buyer", "msg123")
+    state.mark_sent(["1-1", "1-2"], "msg123")
     reloaded = State.load(tmp_path)
     assert reloaded.is_handled("1-1")
     assert reloaded.is_handled("1-2")
     assert reloaded.status("1-1") == "sent"
-    assert reloaded.data["messaged_orders"]["1-1"]["message_id"] == "msg123"
+    entry = reloaded.data["messaged_orders"]["1-1"]
+    assert entry["message_id"] == "msg123"
+    assert "buyer" not in entry
     assert not (tmp_path / "state.json.tmp").exists()
 
 
 def test_mark_never(tmp_path):
     state = State.load(tmp_path)
-    state.mark_never(["2-1"], "buyer")
+    state.mark_never(["2-1"])
     assert State.load(tmp_path).status("2-1") == "never"
 
 

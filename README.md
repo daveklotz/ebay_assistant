@@ -121,7 +121,9 @@ Everything lives in `~/.config/ebay_assistant/` (override with
 | `state.json`       | which orders were already messaged          |
 
 Your credentials never leave your machine except in direct calls to
-`api.ebay.com`.
+`api.ebay.com`. No buyer data is persisted anywhere — `state.json` records
+only your own order IDs — which keeps the "Not persisting eBay data"
+exemption from Setup step 1 accurate.
 
 ## Development
 
