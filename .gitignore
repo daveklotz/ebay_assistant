@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+
+# Never commit credentials or local state, in case EBAY_ASSISTANT_CONFIG_DIR
+# ever points inside the repo
+credentials.json
+token_cache.json
+state.json
+.env

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ebay-assistant"
+version = "0.1.0"
+description = "Personal CLI assistant for eBay sellers — message buyers when their package is dropped off, and more to come"
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "David Klotz" }]
+requires-python = ">=3.11"
+dependencies = ["requests>=2.31"]
+keywords = ["ebay", "seller", "shipping", "sportscards", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+ebay-assistant = "ebay_assistant.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
