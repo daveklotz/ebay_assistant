@@ -39,7 +39,7 @@ def main() -> int:
     init_parser.set_defaults(func=init_cmd.run)
 
     orders_parser = subparsers.add_parser(
-        "orders", help="list recent orders and their label status (read-only)"
+        "orders", help="list recently labeled orders (read-only)"
     )
     orders_parser.add_argument(
         "--days", type=int, help="look-back window in days (default: config days_back)"
@@ -89,9 +89,8 @@ def cmd_orders(args) -> int:
     days = args.days or config.days_back
     state = State.load(config.config_dir)
 
-    print(f"Orders labeled (or awaiting a label) in the last {days} days:")
-    labeled, unlabeled, earlier = fetch_labeled_orders(client, days, labeled_only=False)
-    orders = labeled + unlabeled
+    print(f"Orders labeled in the last {days} days:")
+    orders, _unlabeled, earlier = fetch_labeled_orders(client, days)
     if not orders:
         print("  (none)")
         if earlier:
@@ -105,12 +104,9 @@ def cmd_orders(args) -> int:
     orders.sort(key=lambda o: o.creation_date or epoch, reverse=True)
     for order in orders:
         sold = order.creation_date.strftime("%b %d") if order.creation_date else "?"
-        if order.has_label:
-            status = {"sent": "messaged", "never": "never-message"}.get(
-                state.status(order.order_id), "ready to notify"
-            )
-        else:
-            status = "awaiting label"
+        status = {"sent": "messaged", "never": "never-message"}.get(
+            state.status(order.order_id), "ready to notify"
+        )
         buyer = order.buyer_username or "?"
         print(f"\n  {order.order_id}  buyer: {buyer}  sold: {sold}  [{status}]")
         for item in order.line_items:
