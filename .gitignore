@@ -16,3 +16,6 @@ credentials.json
 token_cache.json
 state.json
 .env
+
+# Claude Code local settings (personal paths/permissions)
+.claude/settings.local.json
