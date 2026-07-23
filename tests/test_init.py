@@ -37,6 +37,6 @@ def test_consent_url():
     assert "redirect_uri=Me-App-xyz" in url
     assert "response_type=code" in url
     assert (
-        "scope=https%3A//api.ebay.com/oauth/api_scope/sell.fulfillment.readonly"
-        "%20https%3A//api.ebay.com/oauth/api_scope/commerce.message" in url
+        "scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope%2Fsell.fulfillment.readonly"
+        "%20https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope%2Fcommerce.message" in url
     )
