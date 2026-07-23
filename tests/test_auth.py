@@ -68,3 +68,42 @@ def test_bad_keyset(tmp_path, monkeypatch):
     )
     with pytest.raises(AuthError, match="App ID / Cert ID"):
         get_access_token(make_config(tmp_path), make_creds())
+
+
+def test_exchange_authorization_code(monkeypatch):
+    captured = {}
+
+    def fake_post(url, headers=None, data=None, timeout=None):
+        captured.update(data)
+        return FakeResponse(
+            200,
+            {
+                "access_token": "at",
+                "expires_in": 7200,
+                "refresh_token": "v^1.1#rt-new",
+                "refresh_token_expires_in": 47304000,
+            },
+        )
+
+    monkeypatch.setattr(auth.requests, "post", fake_post)
+    access, refresh, expires_at = auth.exchange_authorization_code(
+        "https://api.ebay.com", "app", "cert", "v^1.1#code", "Me-App-xyz"
+    )
+    assert refresh == "v^1.1#rt-new"
+    assert access == "at"
+    assert captured["grant_type"] == "authorization_code"
+    assert captured["code"] == "v^1.1#code"
+    assert captured["redirect_uri"] == "Me-App-xyz"
+    assert expires_at.tzinfo is not None
+
+
+def test_exchange_expired_code(monkeypatch):
+    monkeypatch.setattr(
+        auth.requests,
+        "post",
+        lambda *a, **k: FakeResponse(400, {"error": "invalid_grant"}),
+    )
+    with pytest.raises(AuthError, match="single-use"):
+        auth.exchange_authorization_code(
+            "https://api.ebay.com", "app", "cert", "stale", "Me-App-xyz"
+        )

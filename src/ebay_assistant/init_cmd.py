@@ -5,8 +5,14 @@ from __future__ import annotations
 import getpass
 import sys
 from datetime import datetime, timedelta, timezone
+from urllib.parse import parse_qs, unquote
 
-from .auth import SCOPES, AuthError, get_access_token
+from .auth import (
+    SCOPES,
+    AuthError,
+    exchange_authorization_code,
+    get_access_token,
+)
 from .config import (
     API_BASE,
     DEFAULT_TEMPLATE,
@@ -55,18 +61,7 @@ Step 1 — Create your {environment} keyset
     app_id = input("App ID (Client ID): ").strip()
     cert_id = getpass.getpass("Cert ID (Client Secret, hidden): ").strip()
 
-    print(f"""
-Step 2 — Mint a user token
-  1. Still on developer.ebay.com, open: Your Account -> User Access Tokens
-  2. Pick this {environment} keyset, choose OAuth (not Auth'n'Auth), and
-     sign in with your eBay SELLER account when prompted.
-  3. Make sure the token includes these scopes:
-       {SCOPES[0]}
-       {SCOPES[1]}
-  4. Copy the REFRESH token (the long "v^1.1#..." string labeled refresh).
-""")
-    refresh_token = getpass.getpass("Refresh token (hidden): ").strip()
-    expires_at = _prompt_expiry()
+    refresh_token, expires_at = _obtain_token(environment, app_id, cert_id)
 
     config = Config(
         environment=environment,
@@ -102,15 +97,14 @@ def _refresh_token_flow() -> int:
     except ConfigError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    print("Mint a new user token: developer.ebay.com -> Your Account -> User Access Tokens")
-    print("(same keyset, OAuth, sign in as your seller account, scopes: "
-          "sell.fulfillment.readonly + commerce.message)\n")
-    refresh_token = getpass.getpass("New refresh token (hidden): ").strip()
+    refresh_token, expires_at = _obtain_token(
+        config.environment, creds.app_id, creds.cert_id
+    )
     creds = Credentials(
         app_id=creds.app_id,
         cert_id=creds.cert_id,
         refresh_token=refresh_token,
-        refresh_token_expires_at=_prompt_expiry(),
+        refresh_token_expires_at=expires_at,
     )
     write_credentials(creds, config.config_dir)
     (config.config_dir / TOKEN_CACHE_FILE).unlink(missing_ok=True)
@@ -140,6 +134,54 @@ def _validate(config: Config, creds: Credentials) -> int:
         "then `ebay-assistant notify --dry-run`."
     )
     return 0
+
+
+def _obtain_token(environment: str, app_id: str, cert_id: str) -> tuple[str, datetime]:
+    print(f"""
+Step 2 — Get a user token. Either way, open developer.ebay.com ->
+Your Account -> User Access Tokens, and sign in with your eBay SELLER
+account when eBay prompts you. The consent screen should include:
+    {SCOPES[0]}
+    {SCOPES[1]}
+
+  A) Portal token: under "Get a User Token Here", choose OAuth, sign in,
+     and copy the REFRESH token (the long "v^1.1#..." string labeled
+     refresh).
+  B) Test Sign-in workaround (use this when the OAuth radio button keeps
+     popping the "Configure the OAuth Settings" dialog): under "Get a Token
+     from eBay via Your Application", click Test Sign-in, sign in, and when
+     the browser lands on your redirect page, copy the ENTIRE address-bar
+     URL — it carries a ?code=... that is valid for about 5 minutes.
+""")
+    while True:
+        method = input("Method [A/B] (A): ").strip().lower() or "a"
+        if method in ("a", "b"):
+            break
+        print('  please answer "A" or "B"')
+    if method == "a":
+        refresh_token = getpass.getpass("Refresh token (hidden): ").strip()
+        return refresh_token, _prompt_expiry()
+    runame = input(
+        "RuName (the generated 'eBay Redirect URL name', e.g. Your_Name-AppName-xxxxx): "
+    ).strip()
+    pasted = input("Paste the full redirect URL (or just the code value): ").strip()
+    print("Exchanging the code for tokens...")
+    _, refresh_token, expires_at = exchange_authorization_code(
+        API_BASE[environment], app_id, cert_id, _extract_code(pasted), runame
+    )
+    print("Refresh token obtained.")
+    return refresh_token, expires_at
+
+
+def _extract_code(pasted: str) -> str:
+    """Accepts a full redirect URL, a bare query string, or the code itself
+    (still percent-encoded or already decoded)."""
+    if "code=" in pasted:
+        query = pasted.split("?", 1)[1] if "?" in pasted else pasted
+        codes = parse_qs(query).get("code", [])
+        if codes:
+            return codes[0]
+    return unquote(pasted.strip())
 
 
 def _prompt_environment() -> str:

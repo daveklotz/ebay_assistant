@@ -80,6 +80,14 @@ The walkthrough covers everything, but in short:
    Paste the **refresh token** into `init`. It lasts ~18 months; access
    tokens are refreshed automatically. When it expires, run
    `ebay-assistant init --refresh-token`.
+
+   > **Portal quirk:** minting a user token requires a configured redirect
+   > URL ("RuName") first, and even then the *OAuth* radio button sometimes
+   > keeps popping the "Configure the OAuth Settings" dialog. If that
+   > happens, use the redirect URL's **Test Sign-in** button instead: sign
+   > in, then choose method **B** in `init` and paste the URL you land on
+   > (it carries a short-lived `?code=...`) plus your RuName — `init`
+   > exchanges the code for tokens itself.
 3. `init` validates everything with a live read-only call.
 
 ## Usage
